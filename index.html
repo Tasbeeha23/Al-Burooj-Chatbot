@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Al Burooj – Chat Widget Demo</title>
+<style>
+  /* ── PAGE DEMO BACKGROUND ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+  }
+  .demo-page {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .demo-page h1 { font-size: 28px; color: #144a91; margin-bottom: 8px; }
+  .demo-page p  { color: #666; font-size: 15px; }
+
+  /* ══════════════════════════════════════════
+     CHAT WIDGET
+  ══════════════════════════════════════════ */
+  :root {
+    --primary:   #144a91;
+    --primary-d: #0f3870;
+    --primary-l: #e8eef8;
+    --gold:      #c9a84c;
+    --white:     #ffffff;
+    --bg:        #f5f7fa;
+    --text:      #1a1a2e;
+    --muted:     #6b7280;
+    --radius:    16px;
+    --shadow:    0 8px 32px rgba(20,74,145,.18);
+  }
+
+  /* ── LAUNCHER BUBBLE ── */
+  #ab-launcher {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 62px;
+    height: 62px;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: transform .2s, box-shadow .2s;
+    border: none;
+    outline: none;
+  }
+  #ab-launcher:hover { transform: scale(1.08); box-shadow: 0 12px 36px rgba(20,74,145,.28); }
+  #ab-launcher svg   { width: 28px; height: 28px; fill: var(--white); transition: opacity .2s; }
+  #ab-launcher .icon-close { display: none; }
+
+  /* unread badge */
+  #ab-badge {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 18px; height: 18px;
+    background: #e63946;
+    border-radius: 50%;
+    border: 2px solid var(--white);
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── CHAT WINDOW ── */
+  #ab-window {
+    position: fixed;
+    bottom: 104px;
+    right: 28px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 580px;
+    max-height: calc(100vh - 130px);
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 9998;
+    transform: scale(.92) translateY(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .2s;
+  }
+  #ab-window.open {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── HEADER ── */
+  .ab-header {
+    background: var(--primary);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .ab-avatar {
+    width: 42px; height: 42px;
+    background: var(--white);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 20px;
+  }
+  .ab-header-info { flex: 1; }
+  .ab-header-name {
+    font-size: 15px; font-weight: 700;
+    color: var(--white); line-height: 1.2;
+  }
+  .ab-header-sub {
+    font-size: 11.5px; color: rgba(255,255,255,.75);
+    display: flex; align-items: center; gap: 5px; margin-top: 2px;
+  }
+  .ab-online-dot {
+    width: 7px; height: 7px;
+    background: #4ade80; border-radius: 50%;
+  }
+
+  /* ── MESSAGES AREA ── */
+  .ab-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg);
+    scroll-behavior: smooth;
+  }
+  .ab-messages::-webkit-scrollbar { width: 4px; }
+  .ab-messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+  /* ── BUBBLES ── */
+  .ab-msg { display: flex; flex-direction: column; max-width: 86%; }
+  .ab-msg.bot { align-self: flex-start; }
+  .ab-msg.user { align-self: flex-end; }
+
+  .ab-bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+  .ab-msg.bot  .ab-bubble {
+    background: var(--white);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  .ab-msg.user .ab-bubble {
+    background: var(--primary);
+    color: var(--white);
+    border-bottom-right-radius: 4px;
+  }
+  .ab-time {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 3px;
+    padding: 0 4px;
+  }
+  .ab-msg.user .ab-time { text-align: right; }
+
+  /* ── TYPING INDICATOR ── */
+  .ab-typing { display: flex; gap: 5px; padding: 12px 14px; align-self: flex-start; }
+  .ab-typing span {
+    width: 7px; height: 7px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: ab-bounce .9s infinite ease-in-out;
+  }
+  .ab-typing span:nth-child(2) { animation-delay: .15s; }
+  .ab-typing span:nth-child(3) { animation-delay: .30s; }
+  @keyframes ab-bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40%           { transform: translateY(-6px); }
+  }
+  .ab-typing-wrap {
+    background: var(--white);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    align-self: flex-start;
+  }
+
+  /* ── BUTTON CHOICES ── */
+  .ab-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-self: flex-start;
+    max-width: 90%;
+  }
+  .ab-choice-btn {
+    background: var(--white);
+    border: 1.5px solid var(--primary);
+    color: var(--primary);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background .15s, color .15s, transform .1s;
+    line-height: 1.3;
+  }
+  .ab-choice-btn:hover {
+    background: var(--primary);
+    color: var(--white);
+    transform: translateX(2px);
+  }
+  .ab-choice-btn:disabled {
+    opacity: .45;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* ── ENQUIRY FORM ── */
+  .ab-form-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    align-self: flex-start;
+    width: 100%;
+    max-width: 310px;
+  }
+  .ab-form-card h4 {
+    font-size: 13.5px;
+    color: var(--primary);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  .ab-form-field {
+    margin-bottom: 8px;
+  }
+  .ab-form-field label {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .ab-form-field input, .ab-form-field select {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border .15s;
+    background: var(--bg);
+  }
+  .ab-form-field input:focus, .ab-form-field select:focus {
+    border-color: var(--primary);
+    background: var(--white);
+  }
+  .ab-form-submit {
+    width: 100%;
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 9px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background .15s;
+  }
+  .ab-form-submit:hover { background: var(--primary-d); }
+
+  /* ── FOOTER / POWERED BY ── */
+  .ab-footer {
+    padding: 8px 14px;
+    text-align: center;
+    font-size: 11px;
+    color: #b0b7c3;
+    border-top: 1px solid #f0f0f0;
+    flex-shrink: 0;
+    background: var(--white);
+  }
+  .ab-footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+  /* ── RESTART BUTTON ── */
+  .ab-restart {
+    align-self: center;
+    background: none;
+    border: 1px solid #e2e8f0;
+    color: var(--muted);
+    border-radius: 12px;
+    padding: 5px 14px;
+    font-size: 11.5px;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: border-color .15s, color .15s;
+  }
+  .ab-restart:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 440px) {
+    #ab-window { right: 12px; bottom: 96px; width: calc(100vw - 24px); }
+    #ab-launcher { right: 16px; bottom: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Demo page background -->
+<div class="demo-page">
+  <h1>Al Burooj International School</h1>
+  <p>Click the chat bubble in the bottom-right corner to try the chatbot.</p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CHAT LAUNCHER BUTTON
+══════════════════════════════════════════ -->
+<button id="ab-launcher" aria-label="Open chat" onclick="abToggle()">
+  <div id="ab-badge">1</div>
+  <!-- Chat icon -->
+  <svg class="icon-chat" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 10H6v-2h12v2zm0-3H6V7h12v2z"/>
+  </svg>
+  <!-- Close icon -->
+  <svg class="icon-close" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+  </svg>
+</button>
+
+<!-- ══════════════════════════════════════════
+     CHAT WINDOW
+══════════════════════════════════════════ -->
+<div id="ab-window" role="dialog" aria-label="Al Burooj chat assistant">
+
+  <!-- Header -->
+  <div class="ab-header">
+    <div class="ab-avatar"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhMAAAF4CAMAAADZposSAAABVlBMVEX///8UT532oSD6XxwzdksAAAD///0KN27qWwz///v8//8ASpfJ0uD2oBvupz702cP78t3zrlEIOWzuror6YRXvSgDzUwD9XxgweEnr7vA9eFIALm1SaobCwsKrucLnnncAJWHf4+jLy8s+Vn7kUgD29vbg4OD//+8AMm4AFFcAKmP12K39/edcXFz3mgDtVgDI1tyYoq6wsLB0dHTjoipaimr35tsAQIvvzJXcd0IAAE+HkqK9ytChoaGMjIwnJyfse0kmOWfmt5xjeJlBQUFOTk4AIGISEhAAMYaHoL92hJo0NDQASZ5IZ6Mfaz4ALYrxwHVng63X49ocUIkuTW0AAEYdQGifsso3YZN5lsJYdajtyIX468vxxGn44aXxtWb0nobpazHkgVvljlvvq5Xtkm34ybZbf2p3m4akvKwyV5mNsJa/3Mro+e0AXirisELSZyUAI08MaNlqAAAgAElEQVR4nO1d+3/aRrZX4jBEip2mNE2i8giYCINaYjBt05qH69iGGLtpsnFwH9ltu3e3t81ud2/+/1/uOTN6jF5YirER5nw/bQxCM5rHd86cc+bMSFEIBAKBQCAQCAQCgUAgEAgEAoFAIBAIBAKBQCAQCAQCgUAgEAgEAoFAIBAIhIsEY/MuASFlUAHzLgMhXWCMBAWBQIgFkhXLB7b6JBrfHlYMhZFesWRgq8fH16JwfPzs25KuMG3epSRcJtjqrWhOIC2evVxVSFAsFc7iBLDi2impFUsF4MR0SqCoOIXpg2TF0iAGJ65de1IiRXOJEIsTx69aKs0eS4NYnLh2fGjMu6CES0NMTtxqkZxYGsTjxLVnh8SJpUFMThx/T5PH0iAmJ6490+ddUsJlITYnVuddUsJlIS4nnpzOu6SEy0JcThwTJ5YGsTlxOO+SEi4LCThBsXhLgtic+IE4sSwgThD8iM2Jl8SJZQFxguBHbE78qDCFFsyXAsQJgh/ECYIfsTnxPXFiWZCAE6pGlFgKECcIfhAnCH7E5cS1t8SJZUFsOfFWY7TFYzkQW07cIk4sC4gTBD+IEwQ/YnPimkZrYEuC2Jx4oql0NMlyIAEn6LiaJUESTtDcsRyIzwkdOEGsWAYk4ITCyJG5FIjPiQojTiwHiBMEPxJwQlHI8FgKxObEcUUhB8VyIL6caBEnlgTx5QRxYlkwO04IlxZTKZB30RGfE2cdu83wrF1NVcmxteiYHSeQDypJiSuAGXICRMSdn356Q6RYdMyQE4p258O1xx9+CjoF8WKREZ8Tp8oZbkxt48Xj69fXbn+m0CH+C40ZckL96vH1tbXHj18AI8gLvsCYESfwlzfXr1//63/Xrl//lCI3FxqJODE1p40PH1//cOPT24/Xbt/RQKOgEJxFRRJORO8rR9/Ei7W1tTea+hP8ebGhqFpQqWBcfpAzNO1Iwokp9oS28TfQJf6magoqmmtfMS3kNcZMRU8ovjKIZEiaMSNOsDe319Z+voOS5M3n19euv0HR4b8JKMGAFRTDl3LE58RhBCd4D9/5ee367TfQ6yAFvgI188PPwlZHNOXOlxvEibTj/JxQNRj/P63hhAE3gMqw8eHa9cdfhb1Ujn3w9c2/f6lwlychtZgBJ2BG+Nva4zVHNKg4j1z/NGi5al9+c+/uvW/uaESKVOP8nNBU7c7t62ufv1HEriBQLr9Cd+adwJ3qL/furqzce4jUIU6kF+fnhKJ89gJmjhdgfdoX+OzxItDtTzdXNjfv3733GyOLNM2Iv6/8BzAqQjmhgli4vvbzm43PbLwBTqytfSXtHNNUpt3ZXLn3yweP7t//9Q5RIs2ILydeRnHiDjAAzM/PH9tYA+DsoUg+bqaAMnH/7xvKb5v374OeSaRIL2bFCcQaJ8Oa/e22qkr2qPoLCIgPNM34592Vu09Jx0wx4s8dL7VYnOCf1wQnpLmD/Xbz7spHyJEPfl25++sHl1dDQlIkkBNahIrpcMIL4ITrw9bu/Lpy/5svuWv76T34iHKCPFfpRLK5IzSLaE7YLgpNUb8BBfMD9HOCuvk/91Y+fqjSSc1pRRI5EbFyNYUT4hFgnP7j3sq9h4q2wTQgyJe/3l8Bg5RUipQiPid+fF9OAD79lfsvVVQtgRZPb96FiYTmjpTiUjjx5d/v3f/1N1Al0E0BvFD/uXl/8xeD4m7SiSSciHAqnMkJ9eEmVzCZBVV7enPl5r2nRIh04hI4of127+bK/ZV//sPGw398s7Kycv/XLy+zooTYSMAJ/X3lxEf3Vu7evHtPwt2bwImPyUmRTlwWJ1Zk3Of/upyo0ZpYmhDfj/mtHuFRiMGJ+ysB3JU48b9/EidShFRw4vnvf5K+mR6kgxPP/yAHVnqQCk48eHDjL5dTXUIMJOBE5cI4cePGjecKrYmlBWnhxIPfSctMC+K/v+NiOXHj+R+XU2HCmUgNJ258QSpFShCfE29bETP+jDjx/HfjcqpMOAOJOHFG7N35OPHgPzR7pAMJOLF6sZy48eA5ea5SgVRx4l9ke6QB8dfArq1erI4J+OQvika0mDsSceJi5QSomV8Y5LiaP1LFiQc3/iAxMX+kihM3HnyhX061CVMQX8e8BH0C1Ey0R2n6mC/SxQmYPTSKuZo34nPi+FI4AYKC3nc8ZyTgxOklcAI0CnkzOmEeiM+JW6WIA4dmyokbN/59KfUmRCMBJ06T7yEWNyTixPPfo/aREC4JqeMEd2ZeStUJEUgfJyhed95IxIlL0SfIbzVvJOFEhDNpxpy48Zy0zPkiESfCMXNO/OsS6k2IRgo5wX2ZhPkhgc/qMCKLmXPiPxStO1ck4YR2oTG63smDXjI3PyTixIWvlVv4QqHXUc4RqeTEJ3+SnJgjUsGJB35S/JuCKOaIRJy4qHXRT2488NLiD4rVnSMScOIH49I48QWtg80RqeTEgy/+pLljfkjEiYvSJ4Kc+AtxYn5IwImXEWtTs+DEDS8nPiGv1RyRTk48oO3Ec0QqOXGDdo7OE8QJgh8p5cTv5NqeH9LJiRsUazVHJODEj8SJ5UBaOUHG6PyQgBPfVsKzIE5cMSSIvfu2clExukFOkNNqjkjEifAsiBNXDMQJgh8Jzp8gTiwJEnDi7Wp4FmSLXjEk4MQt4sRyIMEZZ88iNv0QJ64YEnACN3iE4ULWO+g89vkhwdxx/DK8o2hd9KohPieuPQs3PIgTVw1JOBGuUFwEJyjOap5IwIlr34dGzl6EjkmcmCPYKmiPcfGkFbbtgmJ0rxr0H+Nz4vgHFnJ45QVwgmL55wlm/BCfE9feroacaXURnPjz0hqAEABTDxNw4tZhyBkAF8CJ3+nQ7TlCU08TKJm3XrWCvXUBnCAVc57QlNW38Tlx7filFlApLoATdPLdXMH07xMIiuNnPUX1HZw/e058otL5E3MEY8rLBJy4duutznwqxcw58eALOs9qnlCZcppAyUR7VPO9s2H2nKADMucK6N7WsyScwHMyL5YTdBbinAG6gZZNxInjb1veLGbOiS9o3pgvoN9eJps8/Jt/Zs0JOlt53gCFsfddIkEBBqnCpOljxpx48JymjvlDT2J4IJ4dKqpLillzguLuUgDthycJSXF8Kp2VOWNOPP+D1IkUoJeYE7dOXb/VjDnxCa2JpgGVb5POHreQFFbXvScn7odzgtZE0wEtydqohe9W7ZfDvh8nVrxygta/0gVVWX2bmBTftS6GE3j++lxagSBDZdpeck4kkBMf3wuDy4kvJDHxu6LRWsf8ASZEkiCKACduP157HILPNzS+XKZ98DAMvzz80i6Aywnh1yZOzB0aCIpXSQWFwwlt49OvwrGh8Ug9xlQV/guBXYAvZDFBSAPwHQynyRbCZDkhwIJQxB3AuAjYaV1O0HskUwIYzqr+KuHswTmBvQrzQ4RSqDLOCe3LCATlxPN/0Xs70gHoOo0lFRTICTHvq59GQLWUxY+++frrb3yAK1+H6Jj/JqMjRagkNEeftRyf1e0wswPtDuuOh482H236ABceBThB2kSqABpFMgf3s1Wrx9md22thxii3RfktDx/dDEOQE7T9K1VgiTaEyXJiKic44nICd5OHvzaGMA9A95XejxPKFE5Yc8fH/pmDI+Czev6nQpxIETRQNL9PQopnFSuwRkN9Yi2Ix//dUIRl8Y+vw+H1WT34D610pAuapiqVZwlI4XBCUTc+C4cqov7RVx3YUSi7rDgnHtB5RWmDxqCPDp9di70p7DubE2jIKuEeKWtz6ZnmJefEJ/+maSNdYDiT6z8mO8jIjr8DxSHgw+T/Cd/2B0/D4Zk7HvxLDX9VJWGeYErvVuzZ45nurFVthOOOqtq2aDhcHfPBjQf/S6E0KUX84JpnTiTtnZ8/v/55CD5UFKFHnG2LPqBg7ZRCU1UjtpNC4gTYorhajv+K//mfx7dVRY3Lied/4Ow1j0oTpgNtj7cxVQqZE1G+bcswOZsTaHPQQkc6ARZEKaaL2ysnojjBbzibE3R+VZrBtMN4pHA4MYv1DoqaSDVYzCDuZ7asn8F6R5GkRKqhsniLYbPkhEIhmKkGuq7ihFIQJ5YLcfaFPZktJwhpR+vbMyUFcWK5oLLVM0lBnFguaIxV3p5hkhInlg1MqXw/PZCbOLGE0F9OlRTn5cQmcWLhwJh++GSK+XFuTjx69GZulSO8H1SmnU4JpzgnJzY3/++34BH/hJSDKWz1+6j54/jWOTixeXPz46+/JEosIlRVf3ntODRG8/iWfVNyTmxuPrr5karQ1tDFhKqcfnscNoGchxM3H+FWUS3klUGE9ANPIWj98CSEFOfgxObNj+4omjiMgLCIYIqx+irEVfEenNhEEbH56P8+iDydgLAQUDegBw+vHfuViveRE5s3Hz369aMNIsSCQ5w4Vjl8+93x+TmxeRMPsaJo3AUHw5lfZdrq4dtnkgvr+K1zQ4K5439+w409xIkFB3Qi4/2otQ6fuN6K41f2DTE4sckZ8fHXT8UmIGLElQF6u98e25ZpEk7gKTU3//50g9sxhCsDhoeZKdrpy7fH3OMdhxPWHQ8/3vzmIRobasibrQkLDFQsVOjY1unLa6BZeDgRQgnBCS4Wnj58ekfVtA08J5PkxNUCPx8PTzmqnP74LOtc9smJNZcTljKJDksm6ECuy6sLTe85n+98aJHApQbuHn38X9X/dlrCVYa8VgGcwP3DfPMw//f69du3P3zx1Ru4yb6NpowrDufoZA5V/fSrn168ePHXFz//DH9e/PTVp5++eXNng5uxNFcsC7jDwuEEP49GVcVBJPyYKnHkMj+tZp7FJBAIKQJJAwKBQCAQCAQCgUAgEAgEAoGAYGdukrFDHWPvpuHRstbN9mH6gZRWjqpdCM+reLyp5MRMWihTI7IOL5L8ftJY7/1xc2Zs6v2epTunTouMeG0Kd8V+5wGPvNVEsD5/WXBYxzlvEsYv+FYOeU+fJxWTHwxfnLfKquImNVYV+NoZh8pfWnt2BIYoD7NLpEUnkV8kw9gVjg3l71/SxLt+Fd8Lfqcj5CUswaRMdK97s6/RmfxCF+eq6s04kGpKXTxiKE4qV9iJR6uRg8JXqLPLk3Koun4msV3BGC9LJ5nbpMGU8m/2O1ycHOwief+4b3t5n02hmqFXOHRDLMvHqY6bSPMUJBRXISoUq2B0C0ZoVeCiXiqVer1eCwB/4IsedmMARosnw3SVVUzXa1XCBk+LZ7+K2fPbWs5NTONZrK5WxINbdpF0KQlPg3nj+76mz/fQt61Se1yoIgrjcbtXOYtXOCdpFUi0x1MV9ro8UdiDNLeZWrxMC/wCMj5WKsNtDIEM6oDwY+3k5J25O4EmOZnslk8KhUqsfI124WRiTjBddbI7yWUhi70uvtNJk4JpmVIqnJgie7jt3aTQdtqSaaVC4d27yatqdTdbrhZKdpJWoXDS2OVpJq8mu7lcboKd3IuW11wcaKW9arY8RNTrZnlYnlTHrWlV0JARpXE1Vy5DsnI9W8+Xzd3quMTVDE3zNJeOhZpMTng9su9OCvGGTlrBlO4wX1BCjmywVCWtXc5Ci0BLtuLqE5hS07vlOof5zjTL+Xq9bI4Nz3N4oK3R5rdls41TyN2ZxDAKV6uMzXouW89VPF2gaa1cPZvLZnNm3YT/8vl6vp6dlKIkBb5P7nSCt5m7Jz8WqrtDeBovWKGlRemDnBETyB0TFcaFyTteSKjFSct+HZn3KfrEzOE9w/GiH4kCLdLIZrf1EO2JB8ljm1Wz2APDrhJboea7/vS9fBaw29L13njXzOWeNKq6vDkHWxb+K9TxNnPPQM3P+RFfN8h0+C3XKHkNHihVr5HNQZEK7VKpXaiWQVhk641xxOAEDhW2oTMLbUvIVUp7kzLUKZffBrkXvluIsVahAT1cbVvzmV7ay5XhMdn863ElMISwZVoNrEd2W2OL/U46GEO97VwO+zvYNBgMqUEPwICHVoeu0WKeCiSUerULbQic4AYEjDnouGHBkJtL4xZce4hNOTzUZPuQGwZMGeezudctPGfE/QGI2sohS7eF8K90Td4Z5XG4WqSUdofZ/KSt29YHiIDe3rCOhRvCqA+vU3sC8mu3q4tm4LGgvXEDmQSJer7tJLywlVdYqGxZWeyNBgyavQCjuV7VmBYUFMKRpJRwVOaGvXh6uiJsOPinzftqV+ObtHomyvt6yZsFtnVJcKKtee0+bouM87lso+IxUfBjZcJHZEtc13rbWbiQK5dClCJF6eLgrvZ4fkw4M0BVxcJB/5qTXoiHCcsO8+VuT3Pcdfy1AjDPYb/nJ73AUxSmV+soryaLHzAomjfbm9LfJRSKwIlkGUO7lgUnGN/0PcaRmR/rgceUtgUnAuoA9mddcMJf6CoKim1HSWw3uHoxCdwIcrDdQInQ8lYPvpSQsTB/vGsFqg7DAEdBo4XeEE92pRyf6OoTv6RQUNHMI+tPQltjgWAP5vw4KCYccE5kh61k/HflBHICdINtHGKToLLf45xolBJxIuvhhLE3tC74MtGg6+t83vNP8SqXTziw3+m+HxkrgWKbM1GP8VJCFUxCSREslOAE6OsLDoYVQeJXK9GToJAT5dVknFA9nIC+OjFxMAelTekMTpTP5oTSq6NQL3elgY3ZqWqlCj8MC371mOvP3TLXVMuB8VCpwpSF6ol/gQc40haaZHkvIFc5J3KLzwmlx7U1qGMpWi8SciIpJ7xyAi7wqaTeC+TC5UQujBMsNicqhbqQ29KyA45xY2xyEeefHviz9EIZOZEFgaBIyi1otkAWi72BQmlVPoiyjZ6fFGJ4mQvPCaM7xFYBJWwc7XpDHTM5JxSZE1Y2KCciODE8j5xg2pjrLlVFUhhRa+6V+ZjWwxYqVRwQfCIo6JKQVNnq6xzaxkHNh6PFn4RquY8wghOLLydAw6wXXvFxGu3Vez9OMD8nsO9hjgrcOANOwI1mgBNoXuMkkB2G2CMKFyRjMebNknQVLDE+StoR9TLGZaFntn1qyBXgBO+CUiO33QL5Ws81upF3zooTICfMEB/CDDihiWfVvXJCVVqo19YnEdoxCIrdLFeV3FIxRUiP+m5AX3XKmxVEGmte6XMFOKHiLF8oZ01UwOu5uhl5AO2MOFFCg7EUvHEmcqKNF8pjiRMM+hzYnoMZPnTqQDPCOLFMy4rDCdBh8mJqiAiMUfWCIIVf5F0JTmiqvl0ftpXWBFtmG5Sm8HaYASfQYTQe5uonId0zC31CcGLbZ9ToE+HfjDgATZgeXGGU2FXhXVsvRPlrVGb5TU0fv68GJ1DBHlZwhsQqnkQdLzkLOaEy43U9Dw8Lds9MOIH9VC9r3uQl0XfdiO4FfaPF7eDsUFIehOIJVyIMMZVZqumw673jCnACusCogmA1NKvtsq2IZpiFnGAaDEmzHRZ9MDO7o+FVC50BHaEtop9b47aQ3JFam1tioJdGrO0wRd9FuVof+ky1K8AJaLNSPVsuqapa4apWvhuxRnhOTvBvWgks/jbmEJg8ZsAJVd8zc6Zvgle1PV6AXLjZgTxVFcsadbziDIRmjrvQlAiFAopZ5ZzI+6IkrgAnNDDFyvUqd+cUuNYOutgFcCLbLZVK3UIuu1tSQs8sPD8nmNrardff+XJgekFwIuBdkp4wNoXLTnMTofnK3eQRk4cmmiubfVXx5HsFOKEorZN6Hh24mrU0mSuFTx7n5ES50RgO69lcDperQw43PS8nGE5MQ1Ab/AO7IiIzpnACHsClQva1U6pKtT6dE3C5OxST7ZXjBOOBCyWMnWbaMExpsnFOThSq1ZMs1+8buZ5xIfpEz8zC7O4Pz29Vz+ZEyQ6EcbLmRtg0OcHsRFeOEwylZL1aUfkZcnt8LSLEyYg4pz5RqVRape4kn63X8+WubkckOHhPTvAlBwGYOYYwufvTCxs7bNnNUzcfJ3I2J6J0TA8npGcuPicwNjdbHysY/qZaNtkwxKOkzEDHZBg1fcJlEdg5iubVM9+bE9lqu9dqVVrdEzM/DlJCWeWcqOfCa2U/nC8CvvbLiUZUQAkurYmVm6xvvfwqcGI8tEcayIwJD0qpht44A1sUQ51P8hiHZBYUX2DTe88d2bppmuUyxvhOWiGHK1tzB9ii0SXvvc6i/vDOzVpwAm3RKGvFkhP16tWzO2C6mGj24aNoysMMHTp5zIATuO1Pr2JIZq7hXzs6ixPvIuVE3gqzh8IVQlYxLR3T7E45jBvqhuFfTnAUqwgilUMjVBWZE3nfcuuCc4IJRckstGzw8ERQ1JQQkTkLTuA/PTEEd1vJ9AkzGI8tOGGOS+12uzvByJiQJTzVskXzUb5tUTecO/J7zjP1PW6JoG87Wk4IlXxshHBiYeMnmLUinKsKnJxM6mI1UAtZ85jNGpizNJ3v+jmB4mNYCnQcRrfUYRhHcULYHZoI+wyG16mq9bwwGWKjzUOxG21nDUwTESXZqhFJChFpjgIvYHcscOwd1Ku1iztYTBt5MfXius6FcYI/E4eg14ZrASdyOYzb9uUgYvnrk3BO2LYoM3jX13crPglnLaDjWnl0KcecAQ1pNb0kPBa7UZ5+XG4th9kzi84JFaQyiLk9F4WcMAu04DQ6o7VySF4IMw4rr/m0FcWJfCEYAebhhKUW+l3NTLE4ODWu8CQPMqp+IrHUmuHMqEUwqI3wbYetlS8wJ0QQgGf8aKK/qiHDY0ac0GyhW/aqDvq2iH0Idj2fbcJ+kDiBznIR5VvueuJ1QGfS+Fp5LiwHG+U6zlvyDbqzLy1KyTT4zBUI7RUxugsby8/UHuhu0mY6FS0PvoupHXQ+v1/cdiAeE3rJUie9IkHjGy1CxIGmagUzNzwMGoVcn8hxTvA4oAKfAUzvVmgUhmUQAtl6toJKbiAXuFDhBcpKTn0rpiZ014GVbQu1Wgz1D3ICZ6qpbZJe2CvXUksoekN0TXD25gFSM+CE3QX+aQIjoXNhagMDaZYLi6aUOCG+i0nC9EhzNH9fczfGsBt6xI5tQfiUUJ4ZKjjhtQI1he9PrfrHjmV35MKTpR+4++tEUsowUA0sNzTqQjZgcE4MgxHXZyDACaZti7nDe1+Xb9h5HTIuWzhHhFwXnHBS4M5DHKL5E79KMeb7eurbun9Hl/hZKDjynkI0NXn8f65uhnv6FY2vpXJHZ4gtml1YTkA3m2MpQgDfpYSzcg4m37CbsSd9nDjroBgtRE5wTgQU9h7XV/i49GVZMnNm2FkOuDcQ5ISTDxP7ODAEWCofnlbBn4f7/4OcsIwvVGLdzbJY1Aq3PHKNYEtwtNBuLxf4qoB83eKEGZ4q1eB9Wa1DH0shNPylfWJ5YIh94JG0Qsf0bnJhRnv9rCdJ+0URmiUn/MGtTNgNoJx5WKbxGS5ndoN7fFnle76e7XJCbHvN1es4LYla8Yg/FQMuc9zGZp5FLX7Smcp1KKGWONcV7rRATxbW2BvNh2+9NECsgRBpKf6T1SxONBZwDzGKBJjXc+/ETikXGtjqYryqXsdfW3DCI/HBcJm2tMTR9fonAHypzRz79ukZIh6h0VI2pMMpoAzY0bshKxmswvdvSdOcUF9zvK+kF0MxVnH2PuIRAJ7t6ZaPZjuoN+iFsnBsBMJHQTJUkC7loOVs2aILyQncbQ+SdngYXFtGhSJXfwdy1vMTWJA5bxwroPKud9b5bl1LToiGRfl8iFd2Kz5OYHAP7zfDJamGrxYelzE8fyNoMFSyVnycDegrHL54NElFjtuBvCdoIebKJ/y6E06FRcC9gVmzGzhzxi5QNl+teOOWgafGCeRXDsTvKA4nytMbJZWAAaLv5nKvKwGNgIed5fgxDp4jQkVrc2cMY/YRq93d1lkKhXD3mda2bTy/AQX8Nsohn8dRmH+oDdg/QOtruCIz0UNOVVJa3BPfOLVDfrFUhtj9aZ7IR8/gKkuOiys8c8jlIoouY9wQBnlINYTjql4ueFQfSIWJcngkThQn6q8CP6QbWHs8kgGm0ap9HKADuM7XGOuo1dliFhc07R10IqRAUKLUqFaiV5b4+baGiHWEZNZI5xcaezjje5xLcOuJWHiyOgifohhtUA/MkHgYFPoNHlt9iLEfmrVvk1VO8HSVrFmo8MlKs6vc280/AVKbJ/w0On7oJspKfTysZ7e7oQcewRPMMmZWnrRF9uJYX6XCq4CabLDughMR8QbphdUaoGFyDd2rikPrifNJzLa4l1/F86xEDF09t1dareiA1dI4N5y2soRnF+F5VryjTyyTsVIw67nGXqATkJmVdzzQy8R7xQhsFUA0+a1WhXc1Y9wSwnkFNy5ZYb8aGKS4mAaWijhvyjmYuVXlB+3UswXu5BbXSydmNr/djpz+WhMeQ5rLCb2JJ9J4okY73C0qonsXzrfNVfEKBtqJ3Y6eXtWYZu16M0XbWdd1K9IM7P9hY3v79evX28P8k7x/u2QAduhbrvFu3O12T7bNOh92flhzO++C+vbuuNTrlbqT7Xy9XG0FhyMXAXti+1aZ88tSHzRc38Bz8rLm65Kh8RhxzapXN2vW0f5omHullq5Xel2zUc+bU052BDnV3eVBQPVG2Uo0fmclCh8MOo/uDbHl0w1VX10tFbbz5bL5rrS66j0/lxmtajnPMez2ekJdaPV6hSHcD8ibpjjckLdUOWp3FX+O0YLnDM2hlWo4bDQgh5Nx2MZcxo8W1NuFBnc8Dbe34Wbg36QbNmtDFXrt7TzPelgA/lQ01TngtrWXG5r5en37pN3r6ZZdxWMLx9Wyie7HcoMD0oIAMEJ2pdllgidDIgw4B5I1XmOiIZSp0PYfMeBAnGfVONMcSxlYq1A9KRT2xuO9vUKh4N1vrepdfrUgjo3tcgk5hq97cP9YJMFDQScTPKh0HBbtJmVVxUVXTISn0E5yE8gQj8kNaU9xKDoYee29HFLHzJeHjeFJt6eEHEMJ6l/BKhJmXTgp2FEMfMWkCcQAAAthSURBVL43em1RSqiALWT4aWlaq7SXhW4FJkHuDbPQ7ulhh4LaZeIKldZqjyd2oqGVyO++dJIIN8v2lIX5VIIZOoch/nr3/TP7Vwu85vb9hvNbxTp9OqJpOFTN8xxMo+vTzxvGooB8Pu1CZ48PQVhrSuiA9FXBmy3O+U75pR/EsTQYPo7k7p728PBs9QxPLJcVRqV1Kidyyhq8vcK1p5AIoLSD2Up0eINI77hQHU8T42YIc951oEQkDuYjdHz+SPXMFyp438gQebf8Io4wB7ttLof9EPJxaonE4+SvU1Bp+LzriwK+Ow//DznslVlvkLeOUBaWv/PKC8aY/S4C9PGecVSs9Qwp1ZnniGoWgRxGRh0AwavArKzD8wl7nm20Kva7Qc4qkCKOEVYt98qUBPwXPEc3sL63ABCv0lCsJvO1mzgwVnQ2s15S4lywG9lum6mcsN/Ywex8Q6K3QlJJr1zBxOGPwDnFfuFH2As1eC0ipKBNcWGSnl0i2/3P03BRF3GbcNkE13IWHrLQ9f91b7J/SJTzmZONfVfkrBY/36l5yDWM9QRPyaLLoYgl/+y0fQOE5QKwAt9eUD379TiEJYE4T63+rjV9TiUsD3BVaC8vFEyaOwgI4ATube/i2h5xgoDAt8/kzZA4G8LyQh83dkskIgg2GFBiuzDt5BPCcgFDfAqv24u3zEG4MKhq6XWhErLNjLC0UFlFT+jWJVx98FcKLfK7AgmzhrVsOu9iEAgEAoFAIBAIBAKBQCAQCITLxGVtmzHO/6TgK3QXC/p6cR3+q4lvxaLzQw2uFot4fb0PtzjYWrd+FCiuO7nA7U5GPIct31NqbmuvOwdfbW15csf0tSIvk3t3rTjodAZ9OXOj737EBxelk7S2pM/iyUUppVTAfqfT2ZJLXOzDgzp9qxqiHEXdbg744q5+68U+v9WXs76OWQykulq5hJYgndDXDzKZI7vE/Z2avZpXW29mdniDdTIeDAysJ6Qa7R/tZDJbIpcB/HIAF/f7TmMUR0X3KfB7X+LE/sB+zAHmOXJyx+xqW0eZTKdo320MjvYH/UETHuBmbmS23Mz7kLnLA6N54Navto7FD+2RraODfr+Z6Tjp+geZJjyoA7XiOdSK8Mx9ixNY432HE8bWwc6g3++MMkd9OW9I0en3BzuZo4FdIJ7LziJxAqoB3Wx/7mea7khYz4iOO9qqAaDdB/BnvSNu3hJfawd21aEXazrwKOMM4OLOjttR+tG+JJNrmX2rjdabRcymif0Gue8LGnWgEZ17O5kBFkpf38mMmvZVQ7pDMY6OnCZnyvp+Rhb/6xm32xXP9Q5ka3TsyuudzAGXTQbUdV9xaum2jfvZGGSaNX4rMO7A7W64jFkYtQESyGmIiBKkF0WpG6EqTVfocZEArca/bVm31bYMOVVR4gQKkCOnt4ET7mfF2Jc5Ac+xWsxKD5zgt66L0S9xAgSJ3RUGiA+bFAbIFjlzt19YX6oQr0Z4jzSFpFm3ctebmQNnPPStx2yNXB5sudkaHaccKEWP7HTSkIJCHNlNI4+6xYDMiT60tNOANeu66Eu7SQzdk8rZvS84gb1tC/XizsgdQ15OjEZuo3LYnFDEvy4nYESOnLtqkKNVVj0DeTiS/EDihH5giX6nGqGc0PdHvKBG0X5ORsrDShHBia3MyJWAR06TFUcjZ0ID2jgEWWxODDKi1fmcUfMMty3v6Ct6vzqc2JI5AZk5Ymd/X0o8OpBGOaKZ8Xx3OVGTnsOgfKMDkaGeEYzjJfVwYn20P5ImrShO1PatjhL51XY8RLKeGcGJHVFXqzK2xAIaHElaNHDWloWLzYn9/mg06p+DE9BCReeWrR1XHsic6Oz4k0dyQh6+DEWP9YOeGTRHXCNQuFbpqkFQhx25DyI4YRyMdlzDSPFNOFbfhnPCW3gQOOIm0HfkB+FlZt+/0JxAWW316ntywpkuipnaesZpVIkTtf0BCPgjOXUkJ3Y8P+hNe/LQM8V1YJwYrx5OgBZ0JDRA62kR+sQgI3W4AoIr5FzocE50XN4rYtZpem+w87dk2qJzooY1FkJPP4MT3O4Y2J1hcaIj2R3Qylsju1UlTmxlagwaUu6DSE5kRke65wcruxpMUUW7V42OywmQTpIKq0RzQtkZjdw5IONqJ3KlR6OO7ToZOA3QlG0erl3gtGNIqhQCxsPoKnCig/Ny05ogz+AETDLoWbAviJav7Qxc/wT2OmqtPJ3LCaOzA7PAyNNOUZyoTeOEk7nMiSZUoSa8KIp1ZwQnwC5yZp9oTox2bNgiCmcdPycMoVXKnICiZ64MJ0D7QiOS6Z4qhsgJ9Ds6M0BmtN/f2jpoyspXUdgNXBt3OVEbDbiJKdn10zixI/fVwMMJRWSuGh3HBtRHSIBRZuSkiuSEUjxCQWNYxY+SEzULjsahH4zkuQPNjTBO6FeJE8o6+gFqylmc4F+d5rbkxr6cAlvOOMjwqXr/wL0uvKMjKfsoTnjcEArnhChFzRIQXPuRONHnU1Jf6p5oTmBFbePA9xy7qGH6BMgJT8sU3blD7nrgxNGV4IQw4tbR5taNOJxwGpLXW/b7WZwABTCDtqHDCWM/A4rjaGckG3RT9AmP3uEwyVKAkRSZdeZwAh4GmYOdOnLF0hQvItoMolz7I5/OLKoQqmM2R/5ZlT+gn/E4XWoZu4KLzYmm5XtDe6ETixMOeAtgF7mrW5wTTEHH9YFxYHOilulsIXYyrkM6mhPNjE/vcEpoD1pgQG1gc2J9R2Qu+T+mcYJ7wXjHwSy0H/w5nBP9jLwE4Ailolf3KTqyasE5YTt7tnCmHSXmBHf91JwUghO84TuOnLBkkeJR0yM5AQVx/ZiohVj9a3OCL6I1HTnRt7KRFieifFaGXQpd5OcRSFP9EzXPRIN6hGGVRG6xAXBVfLoinECVfpRcTvDOsKeELeeOGiobtly1XZs1eW0lkhP6vvygotNx604zc6XAeqbetDzo665b0uWEJzDCWs5ctzoUJZykHw+cSof5MTsyzWAYWNcHGXk6PHKSupxYlLNTwznB7TyZEz5Hn9NCdvyB3R5uH7qcQEevzQn36pE02g6iOIFJnULpTZcJbmdx7ceigl1kw1Vha/Y0r2/JXTLYslJYU0btQFJw9KZTaXld1FkD25Fk3MChttH03C457ywK1UJUllRClmwHkuHtc8H0vQLQVqh0271scwIt2aJ1i5OAFXds/as5qrlZOKNtx69KugXZwmVnMZYHboKiVJp1pzc7GTlzmycjIcS3PAJ8cCQWfZ1KYiBJRxRC73SClZY/o2W2ZS8GujY11t1y4hV3jiTFasTFl9GXGzTNGEjLiEeyLOh4ODHwatUYqdIZDAZN6yLI4B27NaC9xBKpxzAVN26NduzBWMu47saMRwoZTc+EsZMZdbbW17eaGTemZiBNPJC56P91V20FiW4Jij5G+0BJBzueUQr8KmLAjeTcgjrtDPpbW/2mNBs03QTuZ4aBIk0s0yAzkAO1cDW0v75eHIyaDiXQZ5tpQgE6Ye7zFGIderV50MHZ1djqwOeOM0D1jsuJWoffZjcgT9Xc37E913q/w38WIUmDg/1Of51fccV1H4m3Lj+heHAAN2Iz8QcfDJwFVfza7DhdWOvvYyjWzsAJ1MLnH3Tccd9HTvBCOZk3D/YP4EuNl/RgB4p65OkRtIbA9ClK84lRGxyJaK9Ozal0U1R6vXPA28mZXTB6CiRQc92jIxg8rGs0cqPErFz2j7AECxVsFY6ZqkTny8wwZq+fGWFnCxnxnxRxpxGaL4FAIBAIBAKBQCAQCAQCgUAgEAgEAoFAIBAIBAKBQCAQCAQCgUAgEAgEAoFAIBAIBAKBQCAQCAQCgUAgEAgEAoFAIBAIBAKBQCBcafw/Ikvu9S1b13sAAAAASUVORK5CYII=" alt="Al Burooj Logo" style="width:38px;height:38px;object-fit:contain;border-radius:50%;"/></div>
+    <div class="ab-header-info">
+      <div class="ab-header-name">Al Burooj Assistant</div>
+      <div class="ab-header-sub">
+        <span class="ab-online-dot"></span>
+        Always here to help
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="ab-messages" id="ab-messages"></div>
+
+  <!-- Footer -->
+  <div class="ab-footer">Powered by <a href="#">UNBOXD</a></div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     CHATBOT LOGIC
+══════════════════════════════════════════ -->
+<script>
+// ── STATE ──────────────────────────────────
+let abOpen = false;
+let abStep = 'start';
+let abBranch = null; // 'primary' | 'juniors'
+let abChoicesDisabled = false;
+
+// ── FLOW DATA ──────────────────────────────
+const FLOW = {
+
+  greeting: {
+    msg: "Assalamu Alaikum! 👋\nWelcome to Al Burooj International School. I'm here to help parents and families find the information they need.\n\nKindly select your branch to get started:",
+    choices: [
+      { label: "🏫 Al Burooj International School", next: 'primary_menu' },
+      { label: "🧒 Al Burooj Juniors",              next: 'juniors_menu' },
+    ]
+  },
+
+  // ── PRIMARY SCHOOL MENU ──
+  primary_menu: {
+    branch: 'primary',
+    msg: "Great! What would you like to know about Al Burooj International School?",
+    choices: [
+      { label: "📋 Admission Process",        next: 'p_admissions'  },
+      { label: "💰 Fee & Payment Info",       next: 'p_fees'        },
+      { label: "📚 Academics",                next: 'p_academics'   },
+      { label: "🕌 Islamic Studies & Quran",  next: 'p_islamic'     },
+      { label: "🏅 Sports & Athletics",       next: 'p_sports'      },
+      { label: "🕐 Timings & School Policies",next: 'p_timings'     },
+      { label: "📞 Contact & Visit",          next: 'p_contact'     },
+    ]
+  },
+
+  // ── JUNIORS MENU ──
+  juniors_menu: {
+    branch: 'juniors',
+    msg: "Great! What would you like to know about Al Burooj Juniors?",
+    choices: [
+      { label: "📋 Admissions",               next: 'j_admissions'  },
+      { label: "🎨 Montessori Curriculum",    next: 'j_curriculum'  },
+      { label: "🕌 Quran & Islamic Studies",  next: 'j_islamic'     },
+      { label: "🏫 Facilities & Environment", next: 'j_facilities'  },
+      { label: "📋 School Policies",          next: 'j_policies'    },
+      { label: "📞 Contact & Location",       next: 'j_contact'     },
+    ]
+  },
+
+  // ════════════════════════════════
+  // PRIMARY — RESPONSES
+  // ════════════════════════════════
+  p_admissions: {
+    msg: "📋 Admission Process\n\nAdmission to Al Burooj International School involves three stages:\n\n1️⃣ Written admission test\n2️⃣ Parent interview\n3️⃣ Teacher evaluation\n\nWe look at the child's academic standing, personal behaviour, and overall readiness. A school visit before applying is warmly encouraged — our admissions team will walk you through everything.\n\n📞 Call us at +91 8095255655 to schedule a visit.",
+    followUp: true
+  },
+
+  p_fees: {
+    msg: "💰 Fee & Payment Info\n\nFee details vary by grade and are shared directly by our admissions team.\n\nTo get the current fee structure for your child's grade, please:\n\n📞 Call: +91 8095255655 / +91 8095255688\n✉️ Email: contact@alburoojschool.org\n\nOur team is happy to walk you through all the details.",
+    followUp: true
+  },
+
+  p_academics: {
+    msg: "📚 Academics\n\nAl Burooj offers a comprehensive curriculum across Grades 1 to 10, covering:\n\n• English & Urdu (Languages)\n• Mathematics\n• Science\n• Social Studies\n• Information Technology\n• Arts & Craft\n• Physical Education\n\nAll subjects are taught with a focus on both academic excellence and character development.",
+    followUp: true
+  },
+
+  p_islamic: {
+    msg: "🕌 Islamic Studies & Quran\n\nIslamic education is central to life at Al Burooj. Our programme covers:\n\n📖 Quran: Proper recitation (Tajweed) and Hifz (memorisation) programme\n🌙 Islamic Studies: Aqaaid (faith), Akhlaaq (character), Seerah, and Fiqh\n🗣️ Arabic: Arabic as a second language across grades\n🕌 Tarbiyah: Values and Islamic way of life woven into daily school life — not just as a subject\n\nSalah is observed as part of the school day.",
+    followUp: true
+  },
+
+  p_sports: {
+    msg: "🏅 Sports & Athletics\n\nAl Burooj encourages an active school life through:\n\n• Physical Education as a core curriculum subject\n• A range of extra-curricular sports and athletic activities\n• Sports sessions during recess and lunch breaks\n\nWe believe physical development is just as important as academic growth.",
+    followUp: true
+  },
+
+  p_timings: {
+    msg: "🕐 Timings & School Policies\n\n🕗 School Hours: Monday to Friday\nStudents must arrive on time every day.\n\n📌 Key Policies:\n• Absences must be reported by phone or email\n• Attendance below 90% is flagged for review\n• Only healthy snacks permitted — no birthday treats or sodas\n• Students are released only to parents or authorised adults on the admission form\n• Uniform must be worn correctly at all times\n\n📞 For specific timing details, call +91 8095255655.",
+    followUp: true
+  },
+
+  p_contact: {
+    msg: "📞 Contact Al Burooj International School\n\n📍 Address:\n#27, 4th B Cross, KHB Main Road, Kanakanagar, RT Nagar, Bangalore – 560032\n\n📞 Phone:\n+91 8095255655 / +91 8095255688\n\n✉️ Email:\ncontact@alburoojschool.org\n\n🕘 Office Hours:\nMonday to Friday, during school hours",
+    followUp: true
+  },
+
+  // ════════════════════════════════
+  // JUNIORS — RESPONSES
+  // ════════════════════════════════
+  j_admissions: {
+    msg: "📋 Admissions – Al Burooj Juniors\n\nAl Burooj Juniors welcomes children between the ages of 2 and 5 years.\n\n✅ Eligibility:\n• Child must be fully toilet trained\n• Families must be willing to enrol their child in our Islamic education programme\n\n📝 To apply or to know more, please contact us:\n📞 +91 7676060159\n✉️ alburoojjuniors@gmail.com",
+    followUp: true
+  },
+
+  j_curriculum: {
+    msg: "🎨 Montessori Curriculum\n\nAl Burooj Juniors follows a Montessori and kindergarten methodology — activity-based, child-centred learning that develops the whole child.\n\n📚 Areas of Learning:\n• Practical Life Skills\n• Sensorial Development\n• Mathematics\n• Language & Literacy\n• Science & Geography\n• Arts & Craft\n\nSpecial monthly events like Colour Day and Community Helpers Day make learning joyful and immersive.",
+    followUp: true
+  },
+
+  j_islamic: {
+    msg: "🕌 Quran & Islamic Studies – Juniors\n\nIslamic education starts early at Al Burooj Juniors:\n\n📖 Quran: 5 Surah hifz (memorisation) per year\n🌙 Aqaaid: Core Islamic beliefs, taught age-appropriately\n🤲 Ibaadah: Daily prayers and Islamic practices\n💛 Akhlaaq: Character building and good manners\n🗣️ Arabic: Arabic language classes as part of the programme\n\nIslamic education is woven naturally into every day — not taught as a separate subject.",
+    followUp: true
+  },
+
+  j_facilities: {
+    msg: "🏫 Facilities & Environment – Juniors\n\nOur Juniors campus is designed to be safe, stimulating, and child-friendly:\n\n• Soft-floor play areas with colourful, age-appropriate toys\n• Flexible, child-sized furniture\n• Audio-visual learning aids and magnetic boards\n• Regularly sanitised, well-ventilated classrooms\n• Warm, nurturing teachers trained in early childhood education\n\nWe aim to make every child feel safe, loved, and excited to learn.",
+    followUp: true
+  },
+
+  j_policies: {
+    msg: "📋 School Policies – Al Burooj Juniors\n\n• Children are released only to parents or authorised adults\n• Absences must be reported by phone or email\n• Regular attendance is essential — below 90% is flagged\n• Healthy snacks only — no sweets or fizzy drinks\n• Children with fever or illness must stay home until fully recovered\n• Uniform must be worn correctly every day",
+    followUp: true
+  },
+
+  j_contact: {
+    msg: "📞 Contact Al Burooj Juniors\n\n📍 Address:\n#8/1, 2nd Main Road, MM Layout, Kavalbyrasandra, Bengaluru – 560032\n\n📞 Phone:\n+91 7676060159 / +91 8095556522\n\n✉️ Email:\nalburoojjuniors@gmail.com\n\n🕘 Office Hours:\nMonday to Friday, during school hours",
+    followUp: true
+  },
+};
+
+// ── FOLLOW-UP CHOICES ──────────────────────
+function getFollowUp(branch) {
+  return [
+    { label: "🔙 Ask another question",   next: branch === 'juniors' ? 'juniors_menu' : 'primary_menu' },
+    { label: "📝 Submit an enquiry",      next: 'enquiry_form' },
+    { label: "🔀 Change branch",          next: 'greeting' },
+  ];
+}
+
+// ── UTILS ──────────────────────────────────
+function abNow() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function abScroll() {
+  const m = document.getElementById('ab-messages');
+  setTimeout(() => m.scrollTop = m.scrollHeight, 60);
+}
+
+function abDisableChoices() {
+  document.querySelectorAll('.ab-choice-btn').forEach(b => b.disabled = true);
+  abChoicesDisabled = true;
+}
+
+// ── RENDER ─────────────────────────────────
+function renderBotMsg(text, delay = 0) {
+  return new Promise(resolve => {
+    const msgs = document.getElementById('ab-messages');
+
+    // typing indicator
+    const typingWrap = document.createElement('div');
+    typingWrap.className = 'ab-typing-wrap';
+    typingWrap.innerHTML = `<div class="ab-typing"><span></span><span></span><span></span></div>`;
+    msgs.appendChild(typingWrap);
+    abScroll();
+
+    setTimeout(() => {
+      typingWrap.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ab-msg bot';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'ab-bubble';
+      bubble.style.whiteSpace = 'pre-line';
+      bubble.textContent = text;
+
+      const time = document.createElement('div');
+      time.className = 'ab-time';
+      time.textContent = abNow();
+
+      wrap.appendChild(bubble);
+      wrap.appendChild(time);
+      msgs.appendChild(wrap);
+      abScroll();
+      resolve();
+    }, delay || Math.min(600 + text.length * 5, 1600));
+  });
+}
+
+function renderUserMsg(text) {
+  const msgs = document.getElementById('ab-messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'ab-msg user';
+  wrap.innerHTML = `<div class="ab-bubble">${text}</div><div class="ab-time">${abNow()}</div>`;
+  msgs.appendChild(wrap);
+  abScroll();
+}
+
+function renderChoices(choices) {
+  const msgs = document.getElementById('ab-messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'ab-choices';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'ab-choice-btn';
+    btn.textContent = c.label;
+    btn.onclick = () => handleChoice(c);
+    wrap.appendChild(btn);
+  });
+  msgs.appendChild(wrap);
+  abScroll();
+}
+
+function renderEnquiryForm() {
+  const msgs = document.getElementById('ab-messages');
+  const card = document.createElement('div');
+  card.className = 'ab-form-card';
+  card.innerHTML = `
+    <h4>📝 Submit an Enquiry</h4>
+    <div class="ab-form-field">
+      <label>Your Name</label>
+      <input type="text" id="ab-f-name" placeholder="Parent / Guardian name"/>
+    </div>
+    <div class="ab-form-field">
+      <label>Phone Number</label>
+      <input type="tel" id="ab-f-phone" placeholder="+91 XXXXX XXXXX"/>
+    </div>
+    <div class="ab-form-field">
+      <label>Child's Name</label>
+      <input type="text" id="ab-f-child" placeholder="Child's full name"/>
+    </div>
+    <div class="ab-form-field">
+      <label>Applying For</label>
+      <select id="ab-f-grade">
+        <option value="">Select grade / class</option>
+        <option>Pre-KG (Juniors)</option>
+        <option>KG (Juniors)</option>
+        <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+        <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+        <option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
+        <option>Grade 10</option>
+      </select>
+    </div>
+    <button class="ab-form-submit" onclick="abSubmitForm()">Submit Enquiry →</button>
+  `;
+  msgs.appendChild(card);
+  abScroll();
+}
+
+function renderRestart() {
+  const msgs = document.getElementById('ab-messages');
+  const btn = document.createElement('button');
+  btn.className = 'ab-restart';
+  btn.textContent = '↺ Start over';
+  btn.onclick = () => abRestart();
+  msgs.appendChild(btn);
+  abScroll();
+}
+
+// ── FORM SUBMIT ────────────────────────────
+const AB_SHEET_URL = "https://script.google.com/macros/s/AKfycbzGnv3TOzWnbUP0-JKcPVFyEBfBj_c9HfSsz_Sw-8B7sKYgDVuk3w6CmHf_kf7LVcC7xQ/exec";
+
+async function abSubmitForm() {
+  const name  = document.getElementById('ab-f-name')?.value.trim();
+  const phone = document.getElementById('ab-f-phone')?.value.trim();
+  const child = document.getElementById('ab-f-child')?.value.trim();
+  const grade = document.getElementById('ab-f-grade')?.value;
+
+  if (!name || !phone || !child || !grade) {
+    alert('Please fill in all fields before submitting.');
+    return;
+  }
+
+  // Disable submit button to prevent double submits
+  const btn = document.querySelector('.ab-form-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+
+  // Remove form card
+  document.querySelectorAll('.ab-form-card').forEach(el => el.remove());
+
+  renderUserMsg(`📝 ${name} · ${phone} · ${child} · ${grade}`);
+
+  // Send to Google Sheets
+  try {
+    await fetch(AB_SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        phone,
+        child,
+        grade,
+        branch: abBranch === 'juniors' ? 'Al Burooj Juniors' : 'Al Burooj International School'
+      })
+    });
+  } catch (err) {
+    // Silent fail — don't break UX if network issue
+    console.warn('Sheet submission error:', err);
+  }
+
+  // Thank you message regardless of network result
+  renderBotMsg(
+    `Jazakallahu Khair, ${name}! 🌟\n\nYour enquiry has been received. Our admissions team will reach out to you shortly on ${phone}.\n\nWe look forward to welcoming ${child} to the Al Burooj family, insha'Allah. 🌙`
+  ).then(() => {
+    renderRestart();
+  });
+}
+
+// ── HANDLE CHOICE ──────────────────────────
+async function handleChoice(choice) {
+  abDisableChoices();
+
+  // Show as user bubble
+  renderUserMsg(choice.label);
+
+  const step = choice.next;
+
+  if (step === 'enquiry_form') {
+    await renderBotMsg("Sure! Please fill in your details below and our admissions team will get back to you. 😊");
+    renderEnquiryForm();
+    return;
+  }
+
+  const node = FLOW[step];
+  if (!node) return;
+
+  // Track branch
+  if (node.branch) abBranch = node.branch;
+
+  await renderBotMsg(node.msg);
+
+  if (node.choices) {
+    renderChoices(node.choices);
+  } else if (node.followUp) {
+    renderChoices(getFollowUp(abBranch));
+  }
+}
+
+// ── TOGGLE WINDOW ──────────────────────────
+function abToggle() {
+  abOpen = !abOpen;
+  const win = document.getElementById('ab-window');
+  const badge = document.getElementById('ab-badge');
+  const chatIcon  = document.querySelector('.icon-chat');
+  const closeIcon = document.querySelector('.icon-close');
+
+  if (abOpen) {
+    win.classList.add('open');
+    badge.style.display = 'none';
+    chatIcon.style.display = 'none';
+    closeIcon.style.display = 'block';
+    if (document.getElementById('ab-messages').children.length === 0) {
+      abStart();
+    }
+  } else {
+    win.classList.remove('open');
+    chatIcon.style.display = 'block';
+    closeIcon.style.display = 'none';
+  }
+}
+
+// ── START ──────────────────────────────────
+async function abStart() {
+  abStep = 'greeting';
+  abBranch = null;
+  const node = FLOW.greeting;
+  await renderBotMsg(node.msg, 800);
+  renderChoices(node.choices);
+}
+
+// ── RESTART ────────────────────────────────
+function abRestart() {
+  document.getElementById('ab-messages').innerHTML = '';
+  abBranch = null;
+  abChoicesDisabled = false;
+  abStart();
+}
+</script>
+</body>
+</html>
